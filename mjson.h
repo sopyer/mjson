@@ -33,14 +33,31 @@ struct _mjson_parser_t
     uint8_t* bjson_limit;
 };
 
-struct _mjson_data32_t
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#else
+#error "proper packing not implemented!!!"
+#endif
+
+struct _bjson_entry32_t
 {
     uint8_t  id;
-    uint32_t data_size;
+    union
+    {
+        uint32_t val_u32;
+        int32_t  val_s32;
+        float    val_f32;
+    };
 };
 
-typedef struct _mjson_parser_t mjson_parser_t;
-typedef struct _mjson_data32_t mjson_data32_t;
+#ifdef _MSC_VER
+#pragma pack(pop)
+#else
+#error "proper packing not implemented!!!"
+#endif
+
+typedef struct _mjson_parser_t  mjson_parser_t;
+typedef struct _bjson_entry32_t bjson_entry32_t;
 
 #ifdef __cplusplus
 extern "C"
