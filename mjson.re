@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <ctype.h>
 #include <assert.h>
+#include <memory.h>
 
 #include "mjson.h"
 
@@ -45,6 +46,44 @@
 
 typedef unsigned int  uint;
 typedef unsigned char uchar;
+
+#define BJSON_ID_NULL            0
+#define BJSON_ID_FALSE           1
+#define BJSON_ID_EMPTY_STRING    2
+#define BJSON_ID_TRUE            3
+
+#define BJSON_ID_UINT8           4
+#define BJSON_ID_UINT16          5
+#define BJSON_ID_UINT32          6
+#define BJSON_ID_UINT64          7
+
+#define BJSON_ID_SINT8           8
+#define BJSON_ID_SINT16          9
+#define BJSON_ID_SINT32         10
+#define BJSON_ID_SINT64         11
+
+#define BJSON_ID_FLOAT32        12
+#define BJSON_ID_FLOAT64        13
+
+#define BJSON_ID_UTF8_STRING8   16
+#define BJSON_ID_UTF8_STRING16  17
+#define BJSON_ID_UTF8_STRING32  18
+#define BJSON_ID_UTF8_STRING64  19
+
+#define BJSON_ID_BINARY8        20
+#define BJSON_ID_BINARY16       21
+#define BJSON_ID_BINARY32       22
+#define BJSON_ID_BINARY64       23
+
+#define BJSON_ID_ARRAY8         32
+#define BJSON_ID_ARRAY16        33
+#define BJSON_ID_ARRAY32        34
+#define BJSON_ID_ARRAY64        35
+
+#define BJSON_ID_DICT8          36
+#define BJSON_ID_DICT16         37
+#define BJSON_ID_DICT32         38
+#define BJSON_ID_DICT64         39
 
 static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* charlen)
 {
@@ -303,79 +342,128 @@ int mjson_parse(const char *json_data, size_t json_data_size, void* bjson_data, 
     return 1;
 }
 
-static int parse_oct_number(mjson_parser_t *context)
+static int parse_number(mjson_parser_t *context)
 {
-    mjson_next_token(context);
-    return 1;
-}
+    int              num_parsed;
+    uint8_t          bjson_id;
+    const char*      format;
+    bjson_entry32_t* bdata;
 
-static int parse_hex_number(mjson_parser_t *context)
-{
-    mjson_next_token(context);
-    return 1;
-}
+    switch(context->token)
+    {
+        case TOK_OCT_NUMBER:
+            bjson_id = BJSON_ID_SINT32;
+            format   = "%o";
+            break;
+        case TOK_HEX_NUMBER:
+            bjson_id = BJSON_ID_SINT32;
+            format   = "%x";
+            break;
+        case TOK_DEC_NUMBER:
+            bjson_id = BJSON_ID_SINT32;
+            format   = "%d";
+            break;
+        case TOK_FLOAT_NUMBER:
+            bjson_id = BJSON_ID_FLOAT32;
+            format   = "%f";
+            break;
+        default:
+            assert(!"unknown token");
+    }
 
-static int parse_dec_number(mjson_parser_t *context)
-{
-    mjson_next_token(context);
-    return 1;
-}
+    if (context->bjson_limit - context->bjson < sizeof(bjson_entry32_t)) return 0;
+    
+    bdata           = (bjson_entry32_t*)context->bjson;
+    bdata->id       = bjson_id;
+    context->bjson += sizeof(bjson_entry32_t);
 
-static int parse_float_number(mjson_parser_t *context)
-{
+    num_parsed = sscanf(context->start, format, &bdata->val_u32);
+    assert(num_parsed == 1);
+
     mjson_next_token(context);
     return 1;
 }
 
 static int parse_identifier(mjson_parser_t *context)
 {
+    bjson_entry32_t* bdata;
+    size_t           str_len;
+
+    str_len = context->next - context->start;
+
+    if (context->bjson_limit - context->bjson < sizeof(uint8_t) + str_len) return 0;
+    
+    bdata          = (bjson_entry32_t*)context->bjson;
+    bdata->id      = BJSON_ID_UTF8_STRING32;
+    bdata->val_u32 = str_len;
+
+    context->bjson += sizeof(bjson_entry32_t);
+
+    memcpy(context->bjson, context->start, str_len);
+    context->bjson += str_len;
+
     mjson_next_token(context);
     return 1;
 }
 
 static int parse_string(mjson_parser_t *context)
 {
+    bjson_entry32_t* bdata;
+    size_t           str_len;
+
+    str_len = context->next - context->start - 2;
+
+    if (context->bjson_limit - context->bjson < sizeof(uint8_t) + str_len) return 0;
+    
+    bdata          = (bjson_entry32_t*)context->bjson;
+    bdata->id      = BJSON_ID_UTF8_STRING32;
+    bdata->val_u32 = str_len;
+
+    context->bjson += sizeof(bjson_entry32_t);
+
+    memcpy(context->bjson, context->start + 1, str_len);
+    context->bjson += str_len;
+
     mjson_next_token(context);
     return 1;
 }
 
 static int parse_escaped_string(mjson_parser_t *context)
 {
+    assert(!"implemented");
     mjson_next_token(context);
     return 1;
 }
 
 static int parse_value(mjson_parser_t *context)
 {
-    const char* value = context->start;
- 
     assert(context);
  
     switch (context->token)
     {
         case TOK_NULL:
+            if (context->bjson_limit - context->bjson < sizeof(uint8_t)) return 0;
+            *(uint8_t*)context->bjson = BJSON_ID_NULL;
+            context->bjson += sizeof(uint8_t);
             mjson_next_token(context);
             break;
         case TOK_FALSE:
+            if (context->bjson_limit - context->bjson < sizeof(uint8_t)) return 0;
+            *(uint8_t*)context->bjson = BJSON_ID_FALSE;
+            context->bjson += sizeof(uint8_t);
             mjson_next_token(context);
             break;
         case TOK_TRUE:
+            if (context->bjson_limit - context->bjson < sizeof(uint8_t)) return 0;
+            context->bjson += sizeof(uint8_t);
+            *(uint8_t*)context->bjson = BJSON_ID_TRUE;
             mjson_next_token(context);
             break;
         case TOK_OCT_NUMBER:
-            if (!parse_oct_number(context))
-                return 0;
-            break;
         case TOK_HEX_NUMBER:
-            if (!parse_hex_number(context))
-                return 0;
-            break;
         case TOK_DEC_NUMBER:
-            if (!parse_dec_number(context))
-                return 0;
-            break;
         case TOK_FLOAT_NUMBER:
-            if (!parse_float_number(context))
+            if (!parse_number(context))
                 return 0;
             break;
         case TOK_NOESC_STRING:
@@ -405,15 +493,22 @@ static int parse_value(mjson_parser_t *context)
 
 static int parse_value_list(mjson_parser_t *context)
 {
-    mjson_data32_t* array            = (mjson_data32_t*)context->bjson;
-    uint8_t*        data_start       = (uint8_t*)(array+1);
-    int             expect_separator = FALSE;
+    bjson_entry32_t* array;
+    uint8_t*         data_start;
+    int              expect_separator;
 
     assert(context);
-    
-    context->bjson = data_start;
-    array->id      = BJSON_ID_ARRAY32
-    
+
+    if (context->bjson_limit - context->bjson < sizeof(bjson_entry32_t)) return 0;
+
+    array     = (bjson_entry32_t*)context->bjson;
+    array->id = BJSON_ID_ARRAY32;
+
+    context->bjson += sizeof(bjson_entry32_t);
+    data_start      = context->bjson;
+
+    expect_separator = FALSE;
+
     while (context->token != TOK_RIGHT_BRACKET)
     {
         if (expect_separator && context->token == TOK_COMMA)
@@ -425,7 +520,7 @@ static int parse_value_list(mjson_parser_t *context)
             return 0;
     }
 
-    array->data_size = context->bjson - data_start;
+    array->val_u32 = context->bjson - data_start;
 
     mjson_next_token(context);
 
@@ -434,15 +529,21 @@ static int parse_value_list(mjson_parser_t *context)
 
 static int parse_key_value_pair(mjson_parser_t* context, int stop_token)
 {
-    mjson_data32_t* dictionary       = (mjson_data32_t*)context->bjson;
-    uint8_t*        data_start       = (uint8_t*)(dictionary+1);
-    int             expect_separator = FALSE;
+    bjson_entry32_t* dictionary;
+    uint8_t*         data_start;
+    int              expect_separator;
  
     assert(context);
 
-    context->bjson = data_start;
-    dictionary->id = BJSON_ID_DICT32
+    if (context->bjson_limit - context->bjson < sizeof(bjson_entry32_t)) return 0;
+
+    dictionary     = (bjson_entry32_t*)context->bjson;
+    dictionary->id = BJSON_ID_DICT32;
+
+    context->bjson += sizeof(bjson_entry32_t);
+    data_start      = context->bjson;
     
+    expect_separator = FALSE;
     while (context->token != stop_token)
     {
         if (expect_separator && context->token == TOK_COMMA)
@@ -473,7 +574,7 @@ static int parse_key_value_pair(mjson_parser_t* context, int stop_token)
             return 0;
     }
 
-    dictionary->data_size = context->bjson - data_start;
+    dictionary->val_u32 = context->bjson - data_start;
     
     mjson_next_token(context);
 
