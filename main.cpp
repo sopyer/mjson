@@ -80,7 +80,7 @@ validity_test_record_t tests[] =
     1, "{\"a\":   -1E+10}",
     1, "{\"a\":  \"\" }",
     1, "{\"a\": \"qweqwe\"}",
-    //1, "{\"a\": \"\\\\\\\"\\n\\r\\b\\f\\t\\u1234\"}",
+    1, "{\"a\": \"\\\\\\\"\\n\\r\\b\\f\\t\\u1234\"}",
 
     0, "{",
     0, "}",
@@ -150,7 +150,7 @@ validity_test_record_t tests[] =
     0, "[,0]",
     0, "[]0",
 
-    //1, "{\n\"name\": \"Jack (\\\"Bee\\\") Nimble\", \n\"format\": {\"type\":       \"rect\", \n\"width\":      1920, \n\"height\":     1080, \n\"interlace\":  false,\"frame rate\": 24\n}\n}",
+    1, "{\n\"name\": \"Jack (\\\"Bee\\\") Nimble\", \n\"format\": {\"type\":       \"rect\", \n\"width\":      1920, \n\"height\":     1080, \n\"interlace\":  false,\"frame rate\": 24\n}\n}",
     1, "[\"Sunday\", \"Monday\", \"Tuesday\", \"Wednesday\", \"Thursday\", \"Friday\", \"Saturday\"]",
     1, "[\n    [0, -1, 0],\n    [1, 0, 0],\n    [0, 0, 1]\n       ]\n",
     1, "{\n               \"Image\": {\n                  \"Width\":  800,\n                      \"Height\": 600,\n                      \"Title\":  \"View from 15th Floor\",\n                 \"Thumbnail\": {\n                              \"Url\":    \"http:/*www.example.com/image/481989943\",\n                               \"Height\": 125,\n                              \"Width\":  \"100\"\n                   },\n                    \"IDs\": [116, 943, 234, 38793]\n               }\n     }",

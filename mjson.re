@@ -128,13 +128,6 @@ static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* c
     utf8char[0] = uni_cp | first;
 }
 
-static void mjson_next_token(mjson_parser_t* context)
-{
-#define YYREADINPUT(c) (c>=e?0:*c)
-#define YYCTYPE        char
-#define YYCURSOR       c
-#define YYMARKER       m
-
 /*!re2c
     re2c:yyfill:enable      = 0;
     re2c:indent:top         = 2;
@@ -164,6 +157,13 @@ static void mjson_next_token(mjson_parser_t* context)
     SINGLELINE_COMMENT = "//" [^\n\000]* "\n";
     MULTILINE_COMMENT  = "\/*" [^*\000]* [*]+ ( [^\/\000] [^*\000]* [*]+ )* "\/";
 */
+
+static void mjson_next_token(mjson_parser_t* context)
+{
+#define YYREADINPUT(c) (c>=e?0:*c)
+#define YYCTYPE        char
+#define YYCURSOR       c
+#define YYMARKER       m
 
     const char* c = context->next;
     const char* e = context->end;
@@ -342,6 +342,26 @@ int mjson_parse(const char *json_data, size_t json_data_size, void* bjson_data, 
     return 1;
 }
 
+#define PARSECTX_RESERVE_OUTPUT(ctx, ptr, type, size)             \
+    do                                                            \
+    {                                                             \
+        if ((ctx)->bjson_limit - (ctx)->bjson < (size)) return 0; \
+        ptr = (type*)(ctx)->bjson;                                \
+    }                                                             \
+    while(0)
+    
+#define PARSECTX_ADVANCE_OUTPUT(ctx, size)                        \
+    do { (ctx)->bjson += (size); } while(0) 
+
+#define PARSECTX_ALLOCATE_OUTPUT(ctx, ptr, type, size)            \
+    do                                                            \
+    {                                                             \
+        if ((ctx)->bjson_limit - (ctx)->bjson < (size)) return 0; \
+        ptr = (type*)(ctx)->bjson;                                \
+        (ctx)->bjson += size;                                     \
+    }                                                             \
+    while(0)
+
 static int parse_number(mjson_parser_t *context)
 {
     int              num_parsed;
@@ -371,11 +391,8 @@ static int parse_number(mjson_parser_t *context)
             assert(!"unknown token");
     }
 
-    if (context->bjson_limit - context->bjson < sizeof(bjson_entry32_t)) return 0;
-    
-    bdata           = (bjson_entry32_t*)context->bjson;
-    bdata->id       = bjson_id;
-    context->bjson += sizeof(bjson_entry32_t);
+    PARSECTX_ALLOCATE_OUTPUT(context, bdata, bjson_entry32_t, (ptrdiff_t)sizeof(bjson_entry32_t));
+    bdata->id = bjson_id;
 
     num_parsed = sscanf(context->start, format, &bdata->val_u32);
     assert(num_parsed == 1);
@@ -387,20 +404,15 @@ static int parse_number(mjson_parser_t *context)
 static int parse_identifier(mjson_parser_t *context)
 {
     bjson_entry32_t* bdata;
-    size_t           str_len;
+    ptrdiff_t        str_len;
 
     str_len = context->next - context->start;
 
-    if (context->bjson_limit - context->bjson < sizeof(uint8_t) + str_len) return 0;
-    
-    bdata          = (bjson_entry32_t*)context->bjson;
+    PARSECTX_ALLOCATE_OUTPUT(context, bdata, bjson_entry32_t, (ptrdiff_t)sizeof(bjson_entry32_t) + str_len);
     bdata->id      = BJSON_ID_UTF8_STRING32;
     bdata->val_u32 = str_len;
 
-    context->bjson += sizeof(bjson_entry32_t);
-
-    memcpy(context->bjson, context->start, str_len);
-    context->bjson += str_len;
+    memcpy(bdata + 1, context->start, str_len);
 
     mjson_next_token(context);
     return 1;
@@ -409,20 +421,15 @@ static int parse_identifier(mjson_parser_t *context)
 static int parse_string(mjson_parser_t *context)
 {
     bjson_entry32_t* bdata;
-    size_t           str_len;
+    ptrdiff_t        str_len;
 
     str_len = context->next - context->start - 2;
 
-    if (context->bjson_limit - context->bjson < sizeof(uint8_t) + str_len) return 0;
-    
-    bdata          = (bjson_entry32_t*)context->bjson;
+    PARSECTX_ALLOCATE_OUTPUT(context, bdata, bjson_entry32_t, (ptrdiff_t)sizeof(bjson_entry32_t) + str_len);
     bdata->id      = BJSON_ID_UTF8_STRING32;
     bdata->val_u32 = str_len;
 
-    context->bjson += sizeof(bjson_entry32_t);
-
-    memcpy(context->bjson, context->start + 1, str_len);
-    context->bjson += str_len;
+    memcpy(bdata + 1, context->start + 1, str_len);
 
     mjson_next_token(context);
     return 1;
@@ -430,9 +437,96 @@ static int parse_string(mjson_parser_t *context)
 
 static int parse_escaped_string(mjson_parser_t *context)
 {
-    assert(!"implemented");
-    mjson_next_token(context);
-    return 1;
+#define YYREADINPUT(c) (c>=e?0:*c)
+#define YYCTYPE        char
+#define YYCURSOR       c
+#define YYMARKER       m
+
+    const char* c = context->start+1;
+    const char* e = context->next;
+    const char* m = NULL;
+    const char* s;
+
+    bjson_entry32_t* bdata;
+    char*            out;
+    uint32_t         ch = 0;
+    size_t           len;
+    int              num_parsed;
+
+    PARSECTX_ALLOCATE_OUTPUT(context, bdata, bjson_entry32_t, (ptrdiff_t)sizeof(bjson_entry32_t));
+    bdata->id      = BJSON_ID_UTF8_STRING32;
+
+    while (TRUE)
+    {
+        s = c;
+
+/*!re2c
+            CHAR+ {
+                PARSECTX_ALLOCATE_OUTPUT(context, out, char, c - s);
+                memcpy(out, s, c - s);
+
+                continue;
+            }
+            
+            
+            CTL {
+                char decoded = s[1];
+                
+                switch (s[1])
+                {
+                    case 'b':
+                        decoded = '\b';
+                        break;
+                    case 'n':
+                        decoded = '\n';
+                        break;
+                    case 'r':
+                        decoded = '\r';
+                        break;
+                    case 't':
+                        decoded = '\t';
+                        break;
+                    case 'f':
+                        decoded = '\f';
+                        break;
+                }
+                
+                PARSECTX_ALLOCATE_OUTPUT(context, out, char, 1);
+                *out = decoded;
+                
+                continue;
+            }
+
+            UNICODE {
+                PARSECTX_RESERVE_OUTPUT(context, out, char, 6);
+                num_parsed = sscanf(s + 2, "%4x", &ch);
+                assert(num_parsed == 1);
+                unicode_cp_to_utf8(ch, out, &len);
+                PARSECTX_ADVANCE_OUTPUT(context, len);
+
+                continue;
+            }
+
+            "\"" {
+                bdata->val_u32 = context->bjson - (uint8_t*)(bdata + 1);
+                mjson_next_token(context);
+
+                return 1;
+            }
+
+            . | "\n" | [\000] { 
+                assert(!"reachable");
+            }
+*/
+    }
+
+#undef YYREADINPUT
+#undef YYCTYPE           
+#undef YYCURSOR          
+#undef YYMARKER 
+
+    assert(!"reachable");
+    return 0;
 }
 
 static int parse_value(mjson_parser_t *context)
