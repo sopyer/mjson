@@ -15,13 +15,13 @@ int main()
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
 
-struct validity_test_record_t
+struct syntax_validity_test_record_t
 {
     int         expected_result;
     const char* json;
 };
 
-validity_test_record_t tests[] = 
+syntax_validity_test_record_t tests[] = 
 {
     1, "",
     1, " \n\t \t \n  \n",
@@ -159,13 +159,71 @@ validity_test_record_t tests[] =
 
 static const int MAX_BJSON_SIZE = 1*1024*1024;
 
+const char* jsonAPItest = 
+    "a = 5\n"
+    "b = \"string\"\n"
+    "c = 3.0\n"
+    "k : {\n"
+    "   d:4\n"
+    "   k:2.0\n"
+    "}\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n"
+    "\n";
+
 uint8_t bjson[MAX_BJSON_SIZE];
 
 void mjson_syntax_tests()
 {
     int i;
+    mjson_element_t top_element;
     for (i = 0; i < ARRAY_SIZE(tests); ++i)
     {
-        assert(mjson_parse(tests[i].json, strlen(tests[i].json), bjson, sizeof(bjson)) == tests[i].expected_result);
+        assert(mjson_parse(tests[i].json, strlen(tests[i].json), bjson, sizeof(bjson), &top_element) == tests[i].expected_result);
     }
+
+    int result;
+    
+    result = mjson_parse(jsonAPItest, strlen(jsonAPItest), bjson, sizeof(bjson), &top_element);
+    assert(result);
+
+    mjson_element_t it, v, it2, top2;
+    int ires;
+    char out_buf[1024];
+    const char* cres;
+    float fres;
+
+    it = mjson_get_member_first(top_element, &v);
+    assert(it && v);
+    ires = mjson_get_int(v, 0);
+    assert(ires == 5);
+
+    it = mjson_get_member_next(top_element, it, &v);
+    assert(it && v);
+    cres = mjson_get_string(v, out_buf, sizeof(out_buf), "");
+    assert(cres == out_buf && strcmp(out_buf, "string")==0);
+
+    it = mjson_get_member_next(top_element, it, &v);
+    assert(it && v);
+    fres = mjson_get_float(v, 0.0f);
+    assert(fres == 3.0f);
+
+    it = mjson_get_member_next(top_element, it, &top2);
+    assert(it && v);
+
+    it2 = mjson_get_member_first(top2, &v);
+    assert(it2 && v);
+    ires = mjson_get_int(v, 0);
+    assert(ires == 4);
+
+    it2 = mjson_get_member_next(top2, it2, &v);
+    assert(it2 && v);
+    fres = mjson_get_float(v, 0.0f);
+    assert(fres == 2.0f);
 }
