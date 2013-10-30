@@ -72,10 +72,10 @@ mjson_element_t   mjson_get_member      (mjson_element_t dictionary, const char*
 
 int mjson_get_type(mjson_element_t element);
 
-const char* mjson_get_string(mjson_element_t element, char* out_buffer, size_t buf_size, const char* fallback);
-int32_t     mjson_get_int   (mjson_element_t element, int32_t fallback);
-float       mjson_get_float (mjson_element_t element, float   fallback);
-int         mjson_get_bool  (mjson_element_t element, int     fallback);
+const char* mjson_get_string(mjson_element_t element, const char* fallback);
+int32_t     mjson_get_int   (mjson_element_t element, int32_t     fallback);
+float       mjson_get_float (mjson_element_t element, float       fallback);
+int         mjson_get_bool  (mjson_element_t element, int         fallback);
 int         mjson_is_null   (mjson_element_t element);
 
 #ifdef __cplusplus

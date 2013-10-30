@@ -195,7 +195,6 @@ void mjson_syntax_tests()
 
     mjson_element_t it, v, it2, top2;
     int ires;
-    char out_buf[1024];
     const char* cres;
     float fres;
 
@@ -206,8 +205,8 @@ void mjson_syntax_tests()
 
     it = mjson_get_member_next(top_element, it, &v);
     assert(it && v);
-    cres = mjson_get_string(v, out_buf, sizeof(out_buf), "");
-    assert(cres == out_buf && strcmp(out_buf, "string")==0);
+    cres = mjson_get_string(v, "");
+    assert(strcmp(cres, "string")==0);
 
     it = mjson_get_member_next(top_element, it, &v);
     assert(it && v);

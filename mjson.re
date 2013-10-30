@@ -243,20 +243,12 @@ int mjson_get_type(mjson_element_t element)
     return element->id;
 }
 
-const char* mjson_get_string(mjson_element_t element, char* out_buffer, size_t buf_size, const char* fallback)
+const char* mjson_get_string(mjson_element_t element, const char* fallback)
 {
-    size_t len;
-
     return_val_if_fail(element, fallback);
     return_val_if_fail(element->id == MJSON_ID_UTF8_STRING32, fallback);
     
-    len = buf_size <= element->val_u32 ? buf_size - 1 : element->val_u32;
-    
-    memcpy(out_buffer, (const char*)(element+1), len);
-
-    out_buffer[len] = 0;
-    
-    return out_buffer;
+    return (const char*)(element+1);
 }
 
 int32_t mjson_get_int(mjson_element_t element, int32_t fallback)
@@ -599,25 +591,29 @@ static int parse_number(mjson_parser_t *context)
 static int parse_key(mjson_parser_t *context)
 {
     mjson_entry_t* bdata;
-    const char*    str_start;
+    char*          str_dst;
+    const char*    str_src;
     ptrdiff_t      str_len;
     
     assert(context->token==TOK_IDENTIFIER || context->token==TOK_NOESC_STRING);
     
-    str_start = context->start;
-    str_len   = context->next - context->start;
+    str_src = context->start;
+    str_len = context->next - context->start;
 
     if (context->token==TOK_NOESC_STRING)
     {
-        str_start += 1;
-        str_len   -= 2;
+        str_src += 1;
+        str_len -= 2;
     }
     
-    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t) + str_len);
+    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
     bdata->id      = MJSON_ID_UTF8_KEY32;
     bdata->val_u32 = str_len;
 
-    memcpy(bdata + 1, str_start, str_len);
+    str_dst = (char*)(bdata + 1);
+    
+    memcpy(str_dst, str_src, str_len);
+    str_dst[str_len] = 0;
     PARSECTX_ALIGN_OUTPUT(context);
     mjson_next_token(context);
 
@@ -627,15 +623,21 @@ static int parse_key(mjson_parser_t *context)
 static int parse_string(mjson_parser_t *context)
 {
     mjson_entry_t* bdata;
+    char*          str_dst;
+    const char*    str_src;
     ptrdiff_t      str_len;
 
     str_len = context->next - context->start - 2;
 
-    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t) + str_len);
+    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
     bdata->id      = MJSON_ID_UTF8_STRING32;
     bdata->val_u32 = str_len;
 
-    memcpy(bdata + 1, context->start + 1, str_len);
+    str_src = context->start + 1;
+    str_dst = (char*)(bdata + 1);
+    
+    memcpy(str_dst, str_src, str_len);
+    str_dst[str_len] = 0;
     PARSECTX_ALIGN_OUTPUT(context);
     mjson_next_token(context);
 
@@ -716,6 +718,7 @@ static int parse_escaped_string(mjson_parser_t *context)
 
             "\"" {
                 bdata->val_u32 = context->bjson - (uint8_t*)(bdata + 1);
+                *context->bjson++ = 0;
                 PARSECTX_ALIGN_OUTPUT(context);
                 mjson_next_token(context);
 
