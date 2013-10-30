@@ -167,9 +167,9 @@ const char* jsonAPItest =
     "   d:4\n"
     "   k:2.0\n"
     "}\n"
-    "\n"
-    "\n"
-    "\n"
+    "t = true\n"
+    "c : null\n"
+    "ff = 11.0\n"
     "\n"
     "\n"
     "\n"
@@ -194,7 +194,7 @@ void mjson_syntax_tests()
     assert(result);
 
     mjson_element_t it, v, it2, top2;
-    int ires;
+    int ires, bres;
     const char* cres;
     float fres;
 
@@ -225,4 +225,19 @@ void mjson_syntax_tests()
     assert(it2 && v);
     fres = mjson_get_float(v, 0.0f);
     assert(fres == 2.0f);
+
+    it = mjson_get_member_next(top_element, it, &v);
+    assert(it && v);
+    bres = mjson_get_bool(v, false);
+    assert(bres);
+
+    it = mjson_get_member_next(top_element, it, &v);
+    assert(it && v);
+    bres = mjson_is_null(v);
+    assert(bres);
+
+    it = mjson_get_member_next(top_element, it, &v);
+    assert(it && v);
+    fres = mjson_get_float(v, 0.0f);
+    assert(fres == 11.0f);
 }

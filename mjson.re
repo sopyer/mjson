@@ -20,8 +20,8 @@ enum mjson_token_t
     TOK_EQUAL               = 10,
     TOK_LEFT_BRACKET        = 11,
     TOK_RIGHT_BRACKET       = 12,
-    TOK_LEFT_CURVE_BRACKET  = 13,
-    TOK_RIGHT_CURVE_BRACKET = 14,
+    TOK_LEFT_CURLY_BRACKET  = 13,
+    TOK_RIGHT_CURLY_BRACKET = 14,
     TOK_FALSE               = 15,
     TOK_TRUE                = 16,
     TOK_NULL                = 17,
@@ -62,30 +62,6 @@ struct _mjson_entry_t
 #   error "proper packing not implemented!!!"
 #endif
 
-#define PARSECTX_RESERVE_OUTPUT(ctx, ptr, type, size)             \
-    do                                                            \
-    {                                                             \
-        if ((ctx)->bjson_limit - (ctx)->bjson < (size)) return 0; \
-        ptr = (type*)(ctx)->bjson;                                \
-    }                                                             \
-    while(0)
-    
-#define PARSECTX_ADVANCE_OUTPUT(ctx, size)                        \
-    do { (ctx)->bjson += (size); } while(0) 
-
-#define PARSECTX_ALLOCATE_OUTPUT(ctx, ptr, type, size)            \
-    do                                                            \
-    {                                                             \
-        if ((ctx)->bjson_limit - (ctx)->bjson < (size)) return 0; \
-        ptr = (type*)(ctx)->bjson;                                \
-        (ctx)->bjson += size;                                     \
-    }                                                             \
-    while(0)
-
-//TODO: what about 64 bit code????
-#define PARSECTX_ALIGN_OUTPUT(ctx)                                \
-    do { (ctx)->bjson = (uint8_t*)(((ptrdiff_t)(ctx)->bjson + 3) & (~3)); } while(0)
-
 #define return_val_if_fail(cond, val) if (!(cond)) return (val)
 #define return_if_fail(cond) if (!(cond)) return
 #define INT64_T_FORMAT "lld"
@@ -96,7 +72,9 @@ struct _mjson_entry_t
 typedef struct _mjson_parser_t  mjson_parser_t;
 typedef struct _mjson_entry_t   mjson_entry_t;
 
-static void mjson_next_token    (mjson_parser_t* context);
+static void* parsectx_allocate_output(mjson_parser_t* ctx, ptrdiff_t size);
+
+static void parsectx_next_token    (mjson_parser_t* context);
 
 static int parse_value_list    (mjson_parser_t *context);
 static int parse_key_value_pair(mjson_parser_t *context, int stop_token);
@@ -113,25 +91,28 @@ int mjson_parse(const char *json_data, size_t json_data_size, void* storage_buf,
     };
     int stop_token = TOK_NONE;
 
-    PARSECTX_ALLOCATE_OUTPUT(&c, fourcc, uint32_t, sizeof(uint32_t));
+    *top_element = 0;
+
+    fourcc = (uint32_t*)parsectx_allocate_output(&c, (ptrdiff_t)sizeof(uint32_t));
+
+    if (!fourcc) return 0;
+
     *fourcc = '23JB';
 
-    mjson_next_token(&c);
-    
-    *top_element = 0;
-    
+    parsectx_next_token(&c);
+
     if (c.token == TOK_LEFT_BRACKET)
     {
-        mjson_next_token(&c);
+        parsectx_next_token(&c);
         if (!parse_value_list(&c))
             return 0;
     }
     else
     {
-        if (c.token == TOK_LEFT_CURVE_BRACKET)
+        if (c.token == TOK_LEFT_CURLY_BRACKET)
         {
-            stop_token = TOK_RIGHT_CURVE_BRACKET;
-            mjson_next_token(&c);
+            stop_token = TOK_RIGHT_CURLY_BRACKET;
+            parsectx_next_token(&c);
         }
 
         if (!parse_key_value_pair(&c, stop_token))
@@ -326,9 +307,34 @@ static mjson_element_t next_element(mjson_element_t element)
     return (mjson_element_t)((uint8_t*)element + size);
 }
 
-/////////////////////////////////////////////////////////////////////////////
-// Lexer+Parser code
-/////////////////////////////////////////////////////////////////////////////
+static void* parsectx_reserve_output(mjson_parser_t* ctx, ptrdiff_t size)
+{
+    return (ctx->bjson_limit - ctx->bjson < size) ? 0 : ctx->bjson;
+}
+
+static void parsectx_advance_output(mjson_parser_t* ctx, ptrdiff_t size)
+{
+    ctx->bjson += size;
+}
+
+static void* parsectx_allocate_output(mjson_parser_t* ctx, ptrdiff_t size)
+{
+    void* ptr;
+
+    if (ctx->bjson_limit - ctx->bjson < size)
+        return 0;
+
+    ptr = ctx->bjson;
+    ctx->bjson += size;
+
+    return ptr;
+}
+
+//TODO: what about 64 bit code????
+static void parsectx_align4_output(mjson_parser_t* ctx)
+{
+    ctx->bjson = (uint8_t*)(((ptrdiff_t)ctx->bjson + 3) & (~3));
+}
 
 static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* charlen)
 {
@@ -373,6 +379,10 @@ static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* c
     utf8char[0] = uni_cp | first;
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// Lexer+Parser code
+/////////////////////////////////////////////////////////////////////////////
+
 /*!re2c
     re2c:yyfill:enable      = 0;
     re2c:indent:top         = 2;
@@ -403,7 +413,7 @@ static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* c
     MULTILINE_COMMENT  = "\/*" [^*\000]* [*]+ ( [^\/\000] [^*\000]* [*]+ )* "\/";
 */
 
-static void mjson_next_token(mjson_parser_t* context)
+static void parsectx_next_token(mjson_parser_t* context)
 {
 #define YYREADINPUT(c) (c>=e?0:*c)
 #define YYCTYPE        char
@@ -437,12 +447,12 @@ static void mjson_next_token(mjson_parser_t* context)
             }
             
             "{" {
-                token = TOK_LEFT_CURVE_BRACKET;
+                token = TOK_LEFT_CURLY_BRACKET;
                 goto done;
             }
     
             "}" {
-                token = TOK_RIGHT_CURVE_BRACKET;
+                token = TOK_RIGHT_CURLY_BRACKET;
                 goto done;
             }
     
@@ -551,9 +561,9 @@ done:
 
 static int parse_number(mjson_parser_t *context)
 {
-    int              num_parsed;
-    uint8_t          bjson_id;
-    const char*      format;
+    int            num_parsed;
+    uint8_t        bjson_id;
+    const char*    format;
     mjson_entry_t* bdata;
 
     switch(context->token)
@@ -578,13 +588,13 @@ static int parse_number(mjson_parser_t *context)
             assert(!"unknown token");
     }
 
-    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t));
+    bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t));
     bdata->id = bjson_id;
 
     num_parsed = sscanf(context->start, format, &bdata->val_u32);
     assert(num_parsed == 1);
 
-    mjson_next_token(context);
+    parsectx_next_token(context);
     return 1;
 }
 
@@ -606,7 +616,10 @@ static int parse_key(mjson_parser_t *context)
         str_len -= 2;
     }
     
-    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
+    bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
+    
+    if (!bdata) return 0;
+    
     bdata->id      = MJSON_ID_UTF8_KEY32;
     bdata->val_u32 = str_len;
 
@@ -614,8 +627,10 @@ static int parse_key(mjson_parser_t *context)
     
     memcpy(str_dst, str_src, str_len);
     str_dst[str_len] = 0;
-    PARSECTX_ALIGN_OUTPUT(context);
-    mjson_next_token(context);
+    
+    parsectx_align4_output(context);
+    
+    parsectx_next_token(context);
 
     return 1;
 }
@@ -629,7 +644,10 @@ static int parse_string(mjson_parser_t *context)
 
     str_len = context->next - context->start - 2;
 
-    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
+    bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
+    
+    if (!bdata) return 0;
+    
     bdata->id      = MJSON_ID_UTF8_STRING32;
     bdata->val_u32 = str_len;
 
@@ -638,8 +656,10 @@ static int parse_string(mjson_parser_t *context)
     
     memcpy(str_dst, str_src, str_len);
     str_dst[str_len] = 0;
-    PARSECTX_ALIGN_OUTPUT(context);
-    mjson_next_token(context);
+    
+    parsectx_align4_output(context);
+    
+    parsectx_next_token(context);
 
     return 1;
 }
@@ -662,8 +682,11 @@ static int parse_escaped_string(mjson_parser_t *context)
     size_t           len;
     int              num_parsed;
 
-    PARSECTX_ALLOCATE_OUTPUT(context, bdata, mjson_entry_t, (ptrdiff_t)sizeof(mjson_entry_t));
-    bdata->id      = MJSON_ID_UTF8_STRING32;
+    bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t));
+    
+    if (!bdata) return 0;
+    
+    bdata->id = MJSON_ID_UTF8_STRING32;
 
     while (TRUE)
     {
@@ -671,7 +694,10 @@ static int parse_escaped_string(mjson_parser_t *context)
 
 /*!re2c
             CHAR+ {
-                PARSECTX_ALLOCATE_OUTPUT(context, out, char, c - s);
+                out = (char*)parsectx_allocate_output(context, c - s);
+                
+                if (!out) return 0;
+                
                 memcpy(out, s, c - s);
 
                 continue;
@@ -700,18 +726,25 @@ static int parse_escaped_string(mjson_parser_t *context)
                         break;
                 }
                 
-                PARSECTX_ALLOCATE_OUTPUT(context, out, char, 1);
+                out = (char*)parsectx_allocate_output(context, 1);
+                
+                if (!out) return 0;
+                
                 *out = decoded;
                 
                 continue;
             }
 
             UNICODE {
-                PARSECTX_RESERVE_OUTPUT(context, out, char, 6);
+                out = (char*)parsectx_reserve_output(context, 6);
+
+                if (!out) return 0;
+
                 num_parsed = sscanf(s + 2, "%4x", &ch);
                 assert(num_parsed == 1);
                 unicode_cp_to_utf8(ch, out, &len);
-                PARSECTX_ADVANCE_OUTPUT(context, len);
+
+                parsectx_advance_output(context, len);
 
                 continue;
             }
@@ -719,8 +752,8 @@ static int parse_escaped_string(mjson_parser_t *context)
             "\"" {
                 bdata->val_u32 = context->bjson - (uint8_t*)(bdata + 1);
                 *context->bjson++ = 0;
-                PARSECTX_ALIGN_OUTPUT(context);
-                mjson_next_token(context);
+                parsectx_align4_output(context);
+                parsectx_next_token(context);
 
                 return 1;
             }
@@ -742,27 +775,29 @@ static int parse_escaped_string(mjson_parser_t *context)
 
 static int parse_value(mjson_parser_t *context)
 {
+    uint32_t* id;
+
     assert(context);
  
     switch (context->token)
     {
         case TOK_NULL:
-            if (context->bjson_limit - context->bjson < sizeof(uint32_t)) return 0;
-            *(uint32_t*)context->bjson = MJSON_ID_NULL;
-            context->bjson += sizeof(uint32_t);
-            mjson_next_token(context);
+            id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
+            if (!id) return 0;
+            *id = MJSON_ID_NULL;
+            parsectx_next_token(context);
             break;
         case TOK_FALSE:
-            if (context->bjson_limit - context->bjson < sizeof(uint32_t)) return 0;
-            *(uint32_t*)context->bjson = MJSON_ID_FALSE;
-            context->bjson += sizeof(uint32_t);
-            mjson_next_token(context);
+            id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
+            if (!id) return 0;
+            *id = MJSON_ID_FALSE;
+            parsectx_next_token(context);
             break;
         case TOK_TRUE:
-            if (context->bjson_limit - context->bjson < sizeof(uint32_t)) return 0;
-            *(uint32_t*)context->bjson = MJSON_ID_TRUE;
-            context->bjson += sizeof(uint32_t);
-            mjson_next_token(context);
+            id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
+            if (!id) return 0;
+            *id = MJSON_ID_TRUE;
+            parsectx_next_token(context);
             break;
         case TOK_OCT_NUMBER:
         case TOK_HEX_NUMBER:
@@ -779,13 +814,13 @@ static int parse_value(mjson_parser_t *context)
             if (!parse_escaped_string(context))
                 return 0;
             break;
-        case TOK_LEFT_CURVE_BRACKET:
-            mjson_next_token(context);
-            if (!parse_key_value_pair(context, TOK_RIGHT_CURVE_BRACKET))
+        case TOK_LEFT_CURLY_BRACKET:
+            parsectx_next_token(context);
+            if (!parse_key_value_pair(context, TOK_RIGHT_CURLY_BRACKET))
                 return 0;
             break;
         case TOK_LEFT_BRACKET:
-            mjson_next_token(context);
+            parsectx_next_token(context);
             if (!parse_value_list(context))
                 return 0;
             break;
@@ -799,25 +834,24 @@ static int parse_value(mjson_parser_t *context)
 static int parse_value_list(mjson_parser_t *context)
 {
     mjson_entry_t* array;
-    uint8_t*         data_start;
-    int              expect_separator;
+    uint8_t*       data_start;
+    int            expect_separator;
 
     assert(context);
 
-    if (context->bjson_limit - context->bjson < sizeof(mjson_entry_t)) return 0;
+    array = (mjson_entry_t*)parsectx_allocate_output(context, sizeof(mjson_entry_t));
 
-    array     = (mjson_entry_t*)context->bjson;
-    array->id = MJSON_ID_ARRAY32;
-
-    context->bjson += sizeof(mjson_entry_t);
-    data_start      = context->bjson;
+    if (!array) return 0;
+    
+    array->id  = MJSON_ID_ARRAY32;
+    data_start = context->bjson;
 
     expect_separator = FALSE;
 
     while (context->token != TOK_RIGHT_BRACKET)
     {
         if (expect_separator && context->token == TOK_COMMA)
-            mjson_next_token(context);
+            parsectx_next_token(context);
         else
             expect_separator = TRUE;
 
@@ -829,7 +863,7 @@ static int parse_value_list(mjson_parser_t *context)
 
     assert((array->val_u32 & 3) == 0);
 
-    mjson_next_token(context);
+    parsectx_next_token(context);
 
     return 1;
 }
@@ -837,24 +871,23 @@ static int parse_value_list(mjson_parser_t *context)
 static int parse_key_value_pair(mjson_parser_t* context, int stop_token)
 {
     mjson_entry_t* dictionary;
-    uint8_t*         data_start;
-    int              expect_separator;
+    uint8_t*       data_start;
+    int            expect_separator;
  
     assert(context);
 
-    if (context->bjson_limit - context->bjson < sizeof(mjson_entry_t)) return 0;
-
-    dictionary     = (mjson_entry_t*)context->bjson;
+    dictionary = (mjson_entry_t*)parsectx_allocate_output(context, sizeof(mjson_entry_t));
+    
+    if (!dictionary) return 0;
+    
     dictionary->id = MJSON_ID_DICT32;
-
-    context->bjson += sizeof(mjson_entry_t);
-    data_start      = context->bjson;
+    data_start     = context->bjson;
     
     expect_separator = FALSE;
     while (context->token != stop_token)
     {
         if (expect_separator && context->token == TOK_COMMA)
-            mjson_next_token(context);
+            parsectx_next_token(context);
         else
             expect_separator = TRUE;
 
@@ -872,7 +905,7 @@ static int parse_key_value_pair(mjson_parser_t* context, int stop_token)
         if (context->token != TOK_COLON && context->token != TOK_EQUAL)
             return 0;
 
-        mjson_next_token(context);
+        parsectx_next_token(context);
 
         if (!parse_value(context))
             return 0;
@@ -882,7 +915,7 @@ static int parse_key_value_pair(mjson_parser_t* context, int stop_token)
     
     assert((dictionary->val_u32 & 3) == 0);
     
-    mjson_next_token(context);
+    parsectx_next_token(context);
 
     return 1;
 }
