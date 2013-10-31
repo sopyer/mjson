@@ -7,26 +7,27 @@
 
 enum mjson_token_t
 {
-    TOK_NONE                =  0,
-    TOK_IDENTIFIER          =  1,
-    TOK_NOESC_STRING        =  2,
-    TOK_STRING              =  3,
-    TOK_OCT_NUMBER          =  4,
-    TOK_HEX_NUMBER          =  5,
-    TOK_DEC_NUMBER          =  6,
-    TOK_FLOAT_NUMBER        =  7,
-    TOK_COMMA               =  8,
-    TOK_COLON               =  9,
-    TOK_EQUAL               = 10,
-    TOK_LEFT_BRACKET        = 11,
-    TOK_RIGHT_BRACKET       = 12,
-    TOK_LEFT_CURLY_BRACKET  = 13,
-    TOK_RIGHT_CURLY_BRACKET = 14,
-    TOK_FALSE               = 15,
-    TOK_TRUE                = 16,
-    TOK_NULL                = 17,
-    TOK_WHITESPACE          = 18,
-    TOK_INVALID             = 19
+    TOK_NONE,
+    TOK_IDENTIFIER,
+    TOK_NOESC_STRING,
+    TOK_STRING,
+    TOK_OCT_NUMBER,
+    TOK_HEX_NUMBER,
+    TOK_DEC_NUMBER,
+    TOK_FLOAT_NUMBER,
+    TOK_COMMA,
+    TOK_COLON,
+    TOK_EQUAL,
+    TOK_LEFT_BRACKET,
+    TOK_RIGHT_BRACKET,
+    TOK_LEFT_CURLY_BRACKET,
+    TOK_RIGHT_CURLY_BRACKET,
+    TOK_FALSE,
+    TOK_TRUE,
+    TOK_NULL,
+    TOK_WHITESPACE,
+    TOK_INVALID,
+    TOK_COUNT
 };
 
 struct _mjson_parser_t
@@ -39,12 +40,6 @@ struct _mjson_parser_t
     uint8_t* bjson_limit;
 };
 
-#ifdef _MSC_VER
-#   pragma pack(push, 1)
-#else
-#   error "proper packing not implemented!!!"
-#endif
-
 struct _mjson_entry_t
 {
     uint32_t  id;
@@ -56,15 +51,8 @@ struct _mjson_entry_t
     };
 };
 
-#ifdef _MSC_VER
-#   pragma pack(pop)
-#else
-#   error "proper packing not implemented!!!"
-#endif
-
-#define return_val_if_fail(cond, val) if (!(cond)) return (val)
-#define return_if_fail(cond) if (!(cond)) return
-#define INT64_T_FORMAT "lld"
+#define RETURN_VAL_IF_FAIL(cond, val) if (!(cond)) return (val)
+#define RETURN_IF_FAIL(cond) if (!(cond)) return
 #define MAX_UTF8_CHAR_LEN 6
 #define TRUE  1
 #define FALSE 0
@@ -131,17 +119,17 @@ mjson_element_t mjson_get_top_element(void* storage_buf, size_t storage_buf_size
 {
     mjson_element_t top = (mjson_element_t)storage_buf;
     
-    return_val_if_fail(top, NULL);
-    return_val_if_fail(top->id == MJSON_ID_DICT32 || top->id == MJSON_ID_ARRAY32, NULL);
-    return_val_if_fail(top->val_u32 <= storage_buf_size, NULL);
+    RETURN_VAL_IF_FAIL(top, NULL);
+    RETURN_VAL_IF_FAIL(top->id == MJSON_ID_DICT32 || top->id == MJSON_ID_ARRAY32, NULL);
+    RETURN_VAL_IF_FAIL(top->val_u32 <= storage_buf_size, NULL);
     
     return top;
 }
 
 mjson_element_t mjson_get_element_first(mjson_element_t array)
 {
-    return_val_if_fail(array, NULL);
-    return_val_if_fail(array->id == MJSON_ID_ARRAY32, NULL);
+    RETURN_VAL_IF_FAIL(array, NULL);
+    RETURN_VAL_IF_FAIL(array->id == MJSON_ID_ARRAY32, NULL);
     
     return array + 1;
 }
@@ -150,14 +138,14 @@ mjson_element_t mjson_get_element_next(mjson_element_t array, mjson_element_t cu
 {
     mjson_element_t next = NULL;
 
-    return_val_if_fail(array, NULL);
-    return_val_if_fail(current_value, NULL);
-    return_val_if_fail(array->id == MJSON_ID_ARRAY32, NULL);
-    return_val_if_fail((uint8_t*)array + array->val_u32 > (uint8_t*)current_value, NULL);
+    RETURN_VAL_IF_FAIL(array, NULL);
+    RETURN_VAL_IF_FAIL(current_value, NULL);
+    RETURN_VAL_IF_FAIL(array->id == MJSON_ID_ARRAY32, NULL);
+    RETURN_VAL_IF_FAIL((uint8_t*)array + array->val_u32 > (uint8_t*)current_value, NULL);
     
     next = next_element(current_value);
     
-    return_val_if_fail((uint8_t*)array + array->val_u32 > (uint8_t*)next, NULL);
+    RETURN_VAL_IF_FAIL((uint8_t*)array + array->val_u32 > (uint8_t*)next, NULL);
     
     return next;
 }
@@ -175,9 +163,9 @@ mjson_element_t mjson_get_element(mjson_element_t array, int index)
 
 mjson_element_t mjson_get_member_first(mjson_element_t dictionary, mjson_element_t* value)
 {
-    return_val_if_fail(dictionary, NULL);
-    return_val_if_fail(dictionary->id == MJSON_ID_DICT32, NULL);
-    return_val_if_fail((dictionary+1)->id == MJSON_ID_UTF8_KEY32, NULL);
+    RETURN_VAL_IF_FAIL(dictionary, NULL);
+    RETURN_VAL_IF_FAIL(dictionary->id == MJSON_ID_DICT32, NULL);
+    RETURN_VAL_IF_FAIL((dictionary+1)->id == MJSON_ID_UTF8_KEY32, NULL);
     
     *value = next_element(dictionary+1);
     
@@ -188,18 +176,18 @@ mjson_element_t mjson_get_member_next(mjson_element_t dictionary, mjson_element_
 {
     mjson_element_t next_key = NULL;
 
-    return_val_if_fail(dictionary, NULL);
-    return_val_if_fail(dictionary->id == MJSON_ID_DICT32, NULL);
-    return_val_if_fail(current_key, NULL);
-    return_val_if_fail((uint8_t*)dictionary + dictionary->val_u32 > (uint8_t*)current_key, NULL);
-    return_val_if_fail(current_key->id == MJSON_ID_UTF8_KEY32, NULL);
+    RETURN_VAL_IF_FAIL(dictionary, NULL);
+    RETURN_VAL_IF_FAIL(dictionary->id == MJSON_ID_DICT32, NULL);
+    RETURN_VAL_IF_FAIL(current_key, NULL);
+    RETURN_VAL_IF_FAIL((uint8_t*)dictionary + dictionary->val_u32 > (uint8_t*)current_key, NULL);
+    RETURN_VAL_IF_FAIL(current_key->id == MJSON_ID_UTF8_KEY32, NULL);
     
     next_key = next_element(current_key);
     next_key = next_element(next_key);
     
-    return_val_if_fail(next_key, NULL);
-    return_val_if_fail((uint8_t*)dictionary + dictionary->val_u32 > (uint8_t*)next_key, NULL);
-    return_val_if_fail(next_key->id == MJSON_ID_UTF8_KEY32, NULL);
+    RETURN_VAL_IF_FAIL(next_key, NULL);
+    RETURN_VAL_IF_FAIL((uint8_t*)dictionary + dictionary->val_u32 > (uint8_t*)next_key, NULL);
+    RETURN_VAL_IF_FAIL(next_key->id == MJSON_ID_UTF8_KEY32, NULL);
 
     *next_value = next_element(next_key);
    
@@ -219,46 +207,46 @@ mjson_element_t mjson_get_member(mjson_element_t dictionary, const char* name)
 
 int mjson_get_type(mjson_element_t element)
 {
-    return_val_if_fail(element, MJSON_ID_NULL);
+    RETURN_VAL_IF_FAIL(element, MJSON_ID_NULL);
     
     return element->id;
 }
 
 const char* mjson_get_string(mjson_element_t element, const char* fallback)
 {
-    return_val_if_fail(element, fallback);
-    return_val_if_fail(element->id == MJSON_ID_UTF8_STRING32, fallback);
+    RETURN_VAL_IF_FAIL(element, fallback);
+    RETURN_VAL_IF_FAIL(element->id == MJSON_ID_UTF8_STRING32, fallback);
     
     return (const char*)(element+1);
 }
 
 int32_t mjson_get_int(mjson_element_t element, int32_t fallback)
 {
-    return_val_if_fail(element, fallback);
-    return_val_if_fail(element->id == MJSON_ID_SINT32, fallback);
+    RETURN_VAL_IF_FAIL(element, fallback);
+    RETURN_VAL_IF_FAIL(element->id == MJSON_ID_SINT32, fallback);
     
     return element->val_s32;
 }
 
 float mjson_get_float(mjson_element_t element, float fallback)
 {
-    return_val_if_fail(element, fallback);
-    return_val_if_fail(element->id == MJSON_ID_FLOAT32, fallback);
+    RETURN_VAL_IF_FAIL(element, fallback);
+    RETURN_VAL_IF_FAIL(element->id == MJSON_ID_FLOAT32, fallback);
     
     return element->val_f32;
 }
 
 int mjson_get_bool(mjson_element_t element, int fallback)
 {
-    return_val_if_fail(element, fallback);
-    return_val_if_fail(element->id == MJSON_ID_TRUE || element->id == MJSON_ID_FALSE, fallback);
+    RETURN_VAL_IF_FAIL(element, fallback);
+    RETURN_VAL_IF_FAIL(element->id == MJSON_ID_TRUE || element->id == MJSON_ID_FALSE, fallback);
     
     return element->id == MJSON_ID_TRUE;
 }
 
 int mjson_is_null(mjson_element_t element)
 {
-    return_val_if_fail(element, TRUE);
+    RETURN_VAL_IF_FAIL(element, TRUE);
 
     return element->id == MJSON_ID_NULL;
 }
@@ -269,7 +257,7 @@ int mjson_is_null(mjson_element_t element)
 
 static size_t element_size(mjson_element_t element)
 {
-    return_val_if_fail(element, 0);
+    RETURN_VAL_IF_FAIL(element, 0);
 
     switch(element->id)
     {
@@ -286,6 +274,8 @@ static size_t element_size(mjson_element_t element)
 
         case MJSON_ID_UTF8_KEY32:
         case MJSON_ID_UTF8_STRING32:
+            return sizeof(mjson_entry_t) + ((element->val_u32 + 1 + 3) & (~3));
+
         case MJSON_ID_BINARY32:
         case MJSON_ID_ARRAY32:
         case MJSON_ID_DICT32:
@@ -299,7 +289,7 @@ static mjson_element_t next_element(mjson_element_t element)
 {
     size_t size;
     
-    return_val_if_fail(element, 0);
+    RETURN_VAL_IF_FAIL(element, 0);
 
     size = element_size(element);
     assert(size>0);
@@ -427,7 +417,7 @@ static void parsectx_next_token(mjson_parser_t* context)
     int token = TOK_NONE;
 
     assert(context);
-    return_if_fail(context->next != NULL);
+    RETURN_IF_FAIL(context->next != NULL);
 
     while (TRUE)
     {
@@ -589,8 +579,10 @@ static int parse_number(mjson_parser_t *context)
     }
 
     bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t));
-    bdata->id = bjson_id;
 
+    if (!bdata) return 0;
+
+    bdata->id = bjson_id;
     num_parsed = sscanf(context->start, format, &bdata->val_u32);
     assert(num_parsed == 1);
 
@@ -598,73 +590,7 @@ static int parse_number(mjson_parser_t *context)
     return 1;
 }
 
-static int parse_key(mjson_parser_t *context)
-{
-    mjson_entry_t* bdata;
-    char*          str_dst;
-    const char*    str_src;
-    ptrdiff_t      str_len;
-    
-    assert(context->token==TOK_IDENTIFIER || context->token==TOK_NOESC_STRING);
-    
-    str_src = context->start;
-    str_len = context->next - context->start;
-
-    if (context->token==TOK_NOESC_STRING)
-    {
-        str_src += 1;
-        str_len -= 2;
-    }
-    
-    bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
-    
-    if (!bdata) return 0;
-    
-    bdata->id      = MJSON_ID_UTF8_KEY32;
-    bdata->val_u32 = str_len;
-
-    str_dst = (char*)(bdata + 1);
-    
-    memcpy(str_dst, str_src, str_len);
-    str_dst[str_len] = 0;
-    
-    parsectx_align4_output(context);
-    
-    parsectx_next_token(context);
-
-    return 1;
-}
-
-static int parse_string(mjson_parser_t *context)
-{
-    mjson_entry_t* bdata;
-    char*          str_dst;
-    const char*    str_src;
-    ptrdiff_t      str_len;
-
-    str_len = context->next - context->start - 2;
-
-    bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t) + str_len + 1);
-    
-    if (!bdata) return 0;
-    
-    bdata->id      = MJSON_ID_UTF8_STRING32;
-    bdata->val_u32 = str_len;
-
-    str_src = context->start + 1;
-    str_dst = (char*)(bdata + 1);
-    
-    memcpy(str_dst, str_src, str_len);
-    str_dst[str_len] = 0;
-    
-    parsectx_align4_output(context);
-    
-    parsectx_next_token(context);
-
-    return 1;
-}
-
-static int parse_escaped_string(mjson_parser_t *context)
+static int parse_string(mjson_parser_t *context, uint32_t id)
 {
 #define YYREADINPUT(c) (c>=e?0:*c)
 #define YYCTYPE        char
@@ -677,16 +603,51 @@ static int parse_escaped_string(mjson_parser_t *context)
     const char* s;
 
     mjson_entry_t* bdata;
-    char*            out;
-    uint32_t         ch = 0;
-    size_t           len;
-    int              num_parsed;
+    uint32_t       ch = 0;
+    char*          str_dst;
+    const char*    str_src;
+    ptrdiff_t      str_len;
+    size_t         len;
+    int            num_parsed;
 
+    assert(
+        context->token == TOK_STRING       ||
+        context->token == TOK_NOESC_STRING ||
+        context->token == TOK_IDENTIFIER
+    );
+    
     bdata = (mjson_entry_t*)parsectx_allocate_output(context, (ptrdiff_t)sizeof(mjson_entry_t));
     
     if (!bdata) return 0;
     
-    bdata->id = MJSON_ID_UTF8_STRING32;
+    bdata->id = id;
+
+    if (context->token != TOK_STRING)
+    {
+        str_src = context->start;
+        str_len = context->next - context->start;
+
+        if (context->token==TOK_NOESC_STRING)
+        {
+            str_src += 1;
+            str_len -= 2;
+        }
+        
+        bdata->val_u32 = str_len;
+
+        str_dst = (char*)parsectx_allocate_output(context, str_len + 1);
+
+        if (!str_dst) return 0;
+
+        memcpy(str_dst, str_src, str_len);
+        str_dst[str_len] = 0;
+
+        parsectx_align4_output(context);
+
+        parsectx_next_token(context);
+
+        return 1;
+    }
 
     while (TRUE)
     {
@@ -694,11 +655,11 @@ static int parse_escaped_string(mjson_parser_t *context)
 
 /*!re2c
             CHAR+ {
-                out = (char*)parsectx_allocate_output(context, c - s);
+                str_dst = (char*)parsectx_allocate_output(context, c - s);
                 
-                if (!out) return 0;
+                if (!str_dst) return 0;
                 
-                memcpy(out, s, c - s);
+                memcpy(str_dst, s, c - s);
 
                 continue;
             }
@@ -726,23 +687,23 @@ static int parse_escaped_string(mjson_parser_t *context)
                         break;
                 }
                 
-                out = (char*)parsectx_allocate_output(context, 1);
+                str_dst = (char*)parsectx_allocate_output(context, 1);
                 
-                if (!out) return 0;
+                if (!str_dst) return 0;
                 
-                *out = decoded;
+                *str_dst = decoded;
                 
                 continue;
             }
 
             UNICODE {
-                out = (char*)parsectx_reserve_output(context, 6);
+                str_dst = (char*)parsectx_reserve_output(context, 6);
 
-                if (!out) return 0;
+                if (!str_dst) return 0;
 
                 num_parsed = sscanf(s + 2, "%4x", &ch);
                 assert(num_parsed == 1);
-                unicode_cp_to_utf8(ch, out, &len);
+                unicode_cp_to_utf8(ch, str_dst, &len);
 
                 parsectx_advance_output(context, len);
 
@@ -773,62 +734,67 @@ static int parse_escaped_string(mjson_parser_t *context)
     return 0;
 }
 
-static int parse_value(mjson_parser_t *context)
+static int parse_simple(mjson_parser_t *context)
 {
     uint32_t* id;
 
+    assert(
+        context->token == TOK_NULL  ||
+        context->token == TOK_FALSE ||
+        context->token == TOK_TRUE
+    );
+
+    id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
+    if (!id) return 0;
+
+    switch (context->token)
+    {
+        case TOK_NULL:
+            *id = MJSON_ID_NULL;
+            break;
+        case TOK_FALSE:
+            *id = MJSON_ID_FALSE;
+            break;
+        case TOK_TRUE:
+            *id = MJSON_ID_TRUE;
+            break;
+    }
+
+    parsectx_next_token(context);
+    return 1;
+}
+
+static int parse_value(mjson_parser_t *context)
+{
     assert(context);
  
     switch (context->token)
     {
         case TOK_NULL:
-            id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
-            if (!id) return 0;
-            *id = MJSON_ID_NULL;
-            parsectx_next_token(context);
-            break;
         case TOK_FALSE:
-            id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
-            if (!id) return 0;
-            *id = MJSON_ID_FALSE;
-            parsectx_next_token(context);
-            break;
         case TOK_TRUE:
-            id = (uint32_t*)parsectx_allocate_output(context, sizeof(uint32_t));
-            if (!id) return 0;
-            *id = MJSON_ID_TRUE;
-            parsectx_next_token(context);
-            break;
+            return parse_simple(context);
+
         case TOK_OCT_NUMBER:
         case TOK_HEX_NUMBER:
         case TOK_DEC_NUMBER:
         case TOK_FLOAT_NUMBER:
-            if (!parse_number(context))
-                return 0;
-            break;
+            return parse_number(context);
+
         case TOK_NOESC_STRING:
-            if (!parse_string(context))
-                return 0;
-            break;
         case TOK_STRING:
-            if (!parse_escaped_string(context))
-                return 0;
-            break;
+            return parse_string(context, MJSON_ID_UTF8_STRING32);
+
         case TOK_LEFT_CURLY_BRACKET:
             parsectx_next_token(context);
-            if (!parse_key_value_pair(context, TOK_RIGHT_CURLY_BRACKET))
-                return 0;
-            break;
+            return parse_key_value_pair(context, TOK_RIGHT_CURLY_BRACKET);
+
         case TOK_LEFT_BRACKET:
             parsectx_next_token(context);
-            if (!parse_value_list(context))
-                return 0;
-            break;
-        default:
-            return 0;
+            return parse_value_list(context);
     }
 
-    return 1;
+    return 0;
 }
 
 static int parse_value_list(mjson_parser_t *context)
@@ -895,7 +861,7 @@ static int parse_key_value_pair(mjson_parser_t* context, int stop_token)
         {
             case TOK_IDENTIFIER:
             case TOK_NOESC_STRING:
-                if (!parse_key(context))
+                if (!parse_string(context, MJSON_ID_UTF8_KEY32))
                     return 0;
                 break;        
             default:

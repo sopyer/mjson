@@ -165,6 +165,7 @@ const char* jsonAPItest =
     "c = 3.0\n"
     "k : {\n"
     "   d:4\n"
+    "   ss=\"escaped\\n\"\n"
     "   k:2.0\n"
     "}\n"
     "t = true\n"
@@ -220,6 +221,11 @@ void mjson_syntax_tests()
     assert(it2 && v);
     ires = mjson_get_int(v, 0);
     assert(ires == 4);
+
+    it2 = mjson_get_member_next(top2, it2, &v);
+    assert(it && v);
+    cres = mjson_get_string(v, "");
+    assert(strcmp(cres, "escaped\n")==0);
 
     it2 = mjson_get_member_next(top2, it2, &v);
     assert(it2 && v);
