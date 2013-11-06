@@ -93,6 +93,33 @@ const char* valid_json[] =
     "[\n    [0, -1, 0],\n    [1, 0, 0],\n    [0, 0, 1]\n       ]\n",
     "{\n               \"Image\": {\n                  \"Width\":  800,\n                      \"Height\": 600,\n                      \"Title\":  \"View from 15th Floor\",\n                 \"Thumbnail\": {\n                              \"Url\":    \"http:/*www.example.com/image/481989943\",\n                               \"Height\": 125,\n                              \"Width\":  \"100\"\n                   },\n                    \"IDs\": [116, 943, 234, 38793]\n               }\n     }",
     "[\n        {\n     \"precision\": \"zip\",\n       \"Latitude\":  37.7668,\n       \"Longitude\": -122.3959,\n     \"Address\":   \"\",\n  \"City\":      \"SAN FRANCISCO\",\n     \"State\":     \"CA\",\n        \"Zip\":       \"94107\",\n     \"Country\":   \"US\"\n         },\n    {\n     \"precision\": \"zip\",\n       \"Latitude\":  37.371991,\n     \"Longitude\": -122.026020,\n   \"Address\":   \"\",\n  \"City\":      \"SUNNYVALE\",\n         \"State\":     \"CA\",\n        \"Zip\":       \"94085\",\n     \"Country\":   \"US\"\n         }\n     ]",
+
+    /* Empty object. */
+    "{  }",  
+    /* Empty array. */
+    "[  ]",  
+    /* Nesting. */
+    "[ {  }, {  }, [ [  ], {  } ] ]",   
+    /* ASCII String. */ 
+    "{ \"ascii\": \"This is an ASCII string.\" }",
+    /* UNICODE String. */
+    "{ \"unicode\": \"This is a \\uDEAD\\uBEEF.\" }",
+    /* UTF-8 String. */
+    "{ \"utf8\": \"蘊\" }",
+    /* Integer. */ 
+    "{ \"int\": 12439084123 }",
+    /* Exp. */ 
+    "{ \"exp\": -12439084123E+1423 }",
+    /* Frac. */ 
+    "{ \"frac\": 12439084123.999e-1423 }",
+    /* Boolean. */
+    "[ true, false ]",
+    /* Null. */
+    "{ \"NullMatrix\": [ [ null, null ], [ null, null ] ] }",
+    /*Ukrainian*/
+    "{ \"Мова\": \"Українська\" }",
+    /*Japanese*/
+    "{ \"言語\": \"日本語\" }",
 };
 
 void mjson_valid_syntax_tests()
