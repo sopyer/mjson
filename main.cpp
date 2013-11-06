@@ -223,14 +223,14 @@ const char* jsonAPItest =
     "   k:2.0\n"
     "}\n"
     "t = true\n"
+    "array:\n"
+    "[\n"
+    "43\n"
+    "122.0\n"
+    "\"String\"\n"
+    "]\n"
     "c : null\n"
-    "ff = 11.0\n"
-    "\n"
-    "\n"
-    "\n"
-    "\n"
-    "\n"
-    "\n";
+    "ff = 11.0\n";
 
 void mjson_content_tests()
 {
@@ -282,6 +282,24 @@ void mjson_content_tests()
     sput_fail_unless(it && v, "");
     bres = mjson_get_bool(v, false);
     sput_fail_unless(bres, "");
+
+    it = mjson_get_member_next(top_element, it, &top2);
+    sput_fail_unless(it && v, "");
+    
+    it2 = mjson_get_element_first(top2);
+    sput_fail_unless(it2, "");
+    ires = mjson_get_int(it2, 0);
+    sput_fail_unless(ires == 43, "");
+    
+    it2 = mjson_get_element_next(top2, it2);
+    sput_fail_unless(it2, "");
+    fres = mjson_get_float(it2, 0.0f);
+    sput_fail_unless(fres == 122.0f, "");
+    
+    it2 = mjson_get_element_next(top2, it2);
+    sput_fail_unless(it, "");
+    cres = mjson_get_string(it2, "");
+    sput_fail_unless(strcmp(cres, "String")==0, "");
 
     it = mjson_get_member_next(top_element, it, &v);
     sput_fail_unless(it && v, "");
