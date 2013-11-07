@@ -1,4 +1,3 @@
-
 mjson - Modified JSON library
 ====
 
@@ -30,7 +29,7 @@ Also library design makes possible interchangeably use binary and text represent
 License
 ----
 
-Copyright (c) 2013, Mykhailo Parfeniuk
+Copyright (c) 2013, Mykhailo Parfeniuk  
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
