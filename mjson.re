@@ -33,9 +33,9 @@ enum mjson_token_t
 struct _mjson_parser_t
 {
     int token;
-    const char* start;
-    const char* next;
-    const char* end;
+    uint8_t* start;
+    uint8_t* next;
+    uint8_t* end;
     uint8_t* bjson;
     uint8_t* bjson_limit;
 };
@@ -74,7 +74,7 @@ int mjson_parse(const char *json_data, size_t json_data_size, void* storage_buf,
     uint32_t* fourcc;
     mjson_parser_t c = {
         TOK_NONE, 0,
-        json_data, json_data + json_data_size,
+        (uint8_t*)json_data,   (uint8_t*)json_data + json_data_size,
         (uint8_t*)storage_buf, (uint8_t*)storage_buf + storage_buf_size
     };
     int stop_token = TOK_NONE;
@@ -326,7 +326,7 @@ static void parsectx_align4_output(mjson_parser_t* ctx)
     ctx->bjson = (uint8_t*)(((ptrdiff_t)ctx->bjson + 3) & (~3));
 }
 
-static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* charlen)
+static void unicode_cp_to_utf8(uint32_t uni_cp, uint8_t* utf8char/*[6]*/, size_t* charlen)
 {
     uint32_t first, i;
     
@@ -406,14 +406,14 @@ static void unicode_cp_to_utf8(uint32_t uni_cp, char* utf8char/*[6]*/, size_t* c
 static void parsectx_next_token(mjson_parser_t* context)
 {
 #define YYREADINPUT(c) (c>=e?0:*c)
-#define YYCTYPE        char
+#define YYCTYPE        uint8_t
 #define YYCURSOR       c
 #define YYMARKER       m
 
-    const char* c = context->next;
-    const char* e = context->end;
-    const char* m = NULL;
-    const char* s;
+    uint8_t* c = context->next;
+    uint8_t* e = context->end;
+    uint8_t* m = NULL;
+    uint8_t* s;
     int token = TOK_NONE;
 
     assert(context);
@@ -583,7 +583,7 @@ static int parse_number(mjson_parser_t *context)
     if (!bdata) return 0;
 
     bdata->id = bjson_id;
-    num_parsed = sscanf(context->start, format, &bdata->val_u32);
+    num_parsed = sscanf((char*)context->start, format, &bdata->val_u32);
     assert(num_parsed == 1);
 
     parsectx_next_token(context);
@@ -593,19 +593,19 @@ static int parse_number(mjson_parser_t *context)
 static int parse_string(mjson_parser_t *context, uint32_t id)
 {
 #define YYREADINPUT(c) (c>=e?0:*c)
-#define YYCTYPE        char
+#define YYCTYPE        uint8_t
 #define YYCURSOR       c
 #define YYMARKER       m
 
-    const char* c = context->start+1;
-    const char* e = context->next;
-    const char* m = NULL;
-    const char* s;
+    uint8_t* c = context->start+1;
+    uint8_t* e = context->next;
+    uint8_t* m = NULL;
+    uint8_t* s;
 
     mjson_entry_t* bdata;
     uint32_t       ch = 0;
-    char*          str_dst;
-    const char*    str_src;
+    uint8_t*       str_dst;
+    const uint8_t* str_src;
     ptrdiff_t      str_len;
     size_t         len;
     int            num_parsed;
@@ -635,7 +635,7 @@ static int parse_string(mjson_parser_t *context, uint32_t id)
         
         bdata->val_u32 = str_len;
 
-        str_dst = (char*)parsectx_allocate_output(context, str_len + 1);
+        str_dst = (uint8_t*)parsectx_allocate_output(context, str_len + 1);
 
         if (!str_dst) return 0;
 
@@ -655,7 +655,7 @@ static int parse_string(mjson_parser_t *context, uint32_t id)
 
 /*!re2c
             CHAR+ {
-                str_dst = (char*)parsectx_allocate_output(context, c - s);
+                str_dst = (uint8_t*)parsectx_allocate_output(context, c - s);
                 
                 if (!str_dst) return 0;
                 
@@ -687,7 +687,7 @@ static int parse_string(mjson_parser_t *context, uint32_t id)
                         break;
                 }
                 
-                str_dst = (char*)parsectx_allocate_output(context, 1);
+                str_dst = (uint8_t*)parsectx_allocate_output(context, 1);
                 
                 if (!str_dst) return 0;
                 
@@ -697,11 +697,11 @@ static int parse_string(mjson_parser_t *context, uint32_t id)
             }
 
             UNICODE {
-                str_dst = (char*)parsectx_reserve_output(context, 6);
+                str_dst = (uint8_t*)parsectx_reserve_output(context, 6);
 
                 if (!str_dst) return 0;
 
-                num_parsed = sscanf(s + 2, "%4x", &ch);
+                num_parsed = sscanf((char*)(s + 2), "%4x", &ch);
                 assert(num_parsed == 1);
                 unicode_cp_to_utf8(ch, str_dst, &len);
 

@@ -120,6 +120,8 @@ const char* valid_json[] =
     "{ \"Мова\": \"Українська\" }",
     /*Japanese*/
     "{ \"言語\": \"日本語\" }",
+    /*UTF-8 with escape sequence*/
+    "{ \"Язык\": \"Русский\\n\" }",
 };
 
 void mjson_valid_syntax_tests()
@@ -227,7 +229,7 @@ const char* jsonAPItest =
     "[\n"
     "43\n"
     "122.0\n"
-    "\"String\"\n"
+    "\"українська\\n\"\n"
     "]\n"
     "c : null\n"
     "ff = 11.0\n";
@@ -299,7 +301,7 @@ void mjson_content_tests()
     it2 = mjson_get_element_next(top2, it2);
     sput_fail_unless(it, "");
     cres = mjson_get_string(it2, "");
-    sput_fail_unless(strcmp(cres, "String")==0, "");
+    sput_fail_unless(strcmp(cres, "українська\n")==0, "");
 
     it = mjson_get_member_next(top_element, it, &v);
     sput_fail_unless(it && v, "");
