@@ -22,6 +22,11 @@ Input text is transformed into binary blob. Blob storage is based on ideas from 
 Some code ideas are borrowed from another JSON parser - https://github.com/megous/sjson.
 
 Also library design makes possible interchangeably use binary and text representation.
+
+Notes
+----
+
+mjson.c was generated from mjson.re file using modified version of re2c utility(https://github.com/sopyer/re2c-mod) with -is command line switch.
  
 License
 ----
