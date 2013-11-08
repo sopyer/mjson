@@ -19,10 +19,7 @@ Design
 
 Input text is transformed into binary blob. Blob storage is based on ideas from BJSON specification: http://bjson.org, except everything 4 bytes aligned. Strings data storage size is rounded to next multiplier of 4.
 
-Some code ideas are borrowed from another JSON parser: https://github.com/megous/sjson:
-
- - immediate traversal of binary data instead of pointer following in API implementation
- - use of re2c
+Some code ideas are borrowed from another JSON parser - https://github.com/megous/sjson.
 
 Also library design makes possible interchangeably use binary and text representation.
  
