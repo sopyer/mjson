@@ -215,7 +215,9 @@ int mjson_get_type(mjson_element_t element)
 const char* mjson_get_string(mjson_element_t element, const char* fallback)
 {
     RETURN_VAL_IF_FAIL(element, fallback);
-    RETURN_VAL_IF_FAIL(element->id == MJSON_ID_UTF8_STRING32, fallback);
+    RETURN_VAL_IF_FAIL(element->id == MJSON_ID_UTF8_STRING32 ||
+                       element->id == MJSON_ID_UTF8_KEY32,
+                       fallback);
     
     return (const char*)(element+1);
 }

@@ -251,42 +251,60 @@ void mjson_content_tests()
     sput_fail_unless(it && v, "");
     ires = mjson_get_int(v, 0);
     sput_fail_unless(ires == 5, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "a")==0, "");
 
     it = mjson_get_member_next(top_element, it, &v);
     sput_fail_unless(it && v, "");
     cres = mjson_get_string(v, "");
     sput_fail_unless(strcmp(cres, "string")==0, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "b")==0, "");
 
     it = mjson_get_member_next(top_element, it, &v);
     sput_fail_unless(it && v, "");
     fres = mjson_get_float(v, 0.0f);
     sput_fail_unless(fres == 3.0f, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "c")==0, "");
 
     it = mjson_get_member_next(top_element, it, &top2);
     sput_fail_unless(it && v, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "k")==0, "");
 
     it2 = mjson_get_member_first(top2, &v);
     sput_fail_unless(it2 && v, "");
     ires = mjson_get_int(v, 0);
     sput_fail_unless(ires == 4, "");
+    cres =  mjson_get_string(it2, "");
+    sput_fail_unless(strcmp(cres, "d")==0, "");
 
     it2 = mjson_get_member_next(top2, it2, &v);
     sput_fail_unless(it && v, "");
     cres = mjson_get_string(v, "");
     sput_fail_unless(strcmp(cres, "escaped\n")==0, "");
+    cres =  mjson_get_string(it2, "");
+    sput_fail_unless(strcmp(cres, "ss")==0, "");
 
     it2 = mjson_get_member_next(top2, it2, &v);
     sput_fail_unless(it2 && v, "");
     fres = mjson_get_float(v, 0.0f);
     sput_fail_unless(fres == 2.0f, "");
+    cres =  mjson_get_string(it2, "");
+    sput_fail_unless(strcmp(cres, "k")==0, "");
 
     it = mjson_get_member_next(top_element, it, &v);
     sput_fail_unless(it && v, "");
     bres = mjson_get_bool(v, false);
     sput_fail_unless(bres, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "t")==0, "");
 
     it = mjson_get_member_next(top_element, it, &top2);
     sput_fail_unless(it && v, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "array")==0, "");
     
     it2 = mjson_get_element_first(top2);
     sput_fail_unless(it2, "");
@@ -307,9 +325,13 @@ void mjson_content_tests()
     sput_fail_unless(it && v, "");
     bres = mjson_is_null(v);
     sput_fail_unless(bres, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "c")==0, "");
 
     it = mjson_get_member_next(top_element, it, &v);
     sput_fail_unless(it && v, "");
     fres = mjson_get_float(v, 0.0f);
     sput_fail_unless(fres == 11.0f, "");
+    cres =  mjson_get_string(it, "");
+    sput_fail_unless(strcmp(cres, "ff")==0, "");
 }
